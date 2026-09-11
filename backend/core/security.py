@@ -44,3 +44,15 @@ def require_roles(allowed_roles: list[str]):
             )
         return current_user
     return role_checker
+
+def verify_firebase_token_only(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verifies token without checking Firestore (Used for Registration only)"""
+    try:
+        token = credentials.credentials
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {str(e)}"
+        )

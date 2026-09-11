@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from core.config import settings
-from api.v1 import lots
+from api.v1 import lots, categories, collector, auth, recycler, admin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -8,7 +8,13 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
+# Register API Routers
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
 app.include_router(lots.router, prefix=f"{settings.API_V1_STR}/lots", tags=["Lots"])
+app.include_router(categories.router, prefix=f"{settings.API_V1_STR}/categories", tags=["Material Categories"])
+app.include_router(collector.router, prefix=f"{settings.API_V1_STR}/collector", tags=["Collector Profile"])
+app.include_router(recycler.router, prefix=f"{settings.API_V1_STR}/recycler", tags=["Recycler Operations"])
+app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["Admin Dashboard"])
 
 @app.get("/health")
 def health_check():
