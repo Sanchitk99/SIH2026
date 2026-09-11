@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class RecyclerProfileUpdate(BaseModel):
     facility_name: str
@@ -11,3 +11,13 @@ class RecyclerProfileUpdate(BaseModel):
     authorization_number: Optional[str] = None
     pickup_available: bool = False
     service_area: int = 10 # km
+
+# --- NEW SCHEMAS ADDED BELOW ---
+
+class MaterialRate(BaseModel):
+    category_id: str
+    price_per_kg: float
+
+class RecyclerPreferences(BaseModel):
+    accepted_categories: List[str]
+    rates: List[MaterialRate]

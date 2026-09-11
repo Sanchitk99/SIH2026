@@ -28,3 +28,21 @@ async def authorize_recycler(
     recycler_ref.update({"authorization_status": status})
     
     return APIResponse(success=True, message=f"Recycler status updated to {status}")
+
+@router.get("/dashboard", response_model=APIResponse)
+async def get_dashboard_stats(current_user: dict = Depends(require_roles(["ADMIN"]))):
+    # Note: In a large production app, use Firestore Aggregation queries. 
+    # This is an MVP approach.
+    users_docs = db.collection('users').stream()
+    lots_docs = db.collection('material_lots').stream()
+    tx_docs = db.collection('transactions').where('transaction_status', '==', 'COMPLETED').stream()
+    
+    users_count = len(list(users_docs))
+    lots_count = len(list(lots_docs))
+    tx_count = len(list(tx_docs))
+    
+    return APIResponse(success=True, message="Dashboard stats fetched", data={
+        "total_users_registered": users_count,
+        "total_lots_created": lots_count,
+        "total_completed_transactions": tx_count
+    })
