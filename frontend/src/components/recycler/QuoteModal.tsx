@@ -1,134 +1,98 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useRef } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { CalendarDays, CheckCircle2, IndianRupee, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { quoteApi, type SubmitQuoteData } from '../../services/quoteApi';
-import { X, Loader2 } from 'lucide-react';
+import { Button } from '../ui/Primitives';
+import type { MaterialLot } from '../../types/models';
+import { formatCurrency } from '../../utils/formatters';
 
-interface Props {
-  lotId: string;
-  onClose: () => void;
+interface OfferFormValues {
+  quoted_price: number | string;
+  pickup_available: 'yes' | 'no';
+  estimated_pickup_date: string;
 }
 
-export default function QuoteModal({ lotId, onClose }: Props) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<SubmitQuoteData>({
-    defaultValues: {
-      lot_id: lotId,
-      pickup_available: true,
-    },
-  });
+function getOfferErrorKey(error: unknown) {
+  if (!axios.isAxiosError(error)) return 'quotes.offerError';
+  if (error.response?.status === 409) return 'quotes.duplicateOffer';
+  if (error.response?.status === 400 || error.response?.status === 404) return 'quotes.offerUnavailable';
+  return 'quotes.offerError';
+}
 
+export default function QuoteModal({ lot, onClose }: { lot: MaterialLot; onClose: () => void }) {
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const { register, handleSubmit, control, setError, formState: { errors } } = useForm<OfferFormValues>({
+    defaultValues: { pickup_available: 'yes', quoted_price: '', estimated_pickup_date: '' },
+  });
+  const totalOffer = useWatch({ control, name: 'quoted_price' });
+  const weight = Number(lot.approximate_weight ?? lot.weight_kg);
+  const calculatedRate = Number(totalOffer) > 0 && weight > 0 ? Number(totalOffer) / weight : null;
   const mutation = useMutation({
     mutationFn: quoteApi.submitQuote,
-    onSuccess: () => {
-      // Invalidate the marketplace query so the available lots refresh
-      queryClient.invalidateQueries({ queryKey: ['availableLots'] });
-      onClose();
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['availableLots'] });
     },
   });
 
-  const onSubmit = (data: SubmitQuoteData) => {
-    mutation.mutate(data);
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const submitOffer = (data: OfferFormValues) => {
+    const quotedPrice = Number(data.quoted_price);
+    if (!Number.isFinite(quotedPrice) || quotedPrice <= 0 || !Number.isFinite(weight) || weight <= 0) {
+      setError('quoted_price', { type: 'validate', message: t('quotes.validOffer') });
+      return;
+    }
+
+    const payload: SubmitQuoteData = {
+      lot_id: lot.id,
+      quoted_price: quotedPrice,
+      price_per_unit: quotedPrice / weight,
+      pickup_available: data.pickup_available === 'yes',
+      estimated_pickup_date: data.estimated_pickup_date,
+    };
+    mutation.mutate(payload);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800">{t('submitQuote')}</h2>
-          <button 
-            onClick={onClose} 
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg transition-colors"
-          >
-            <X size={20} />
-          </button>
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="quote-title" aria-describedby="quote-summary">
+      <div className="modal-heading">
+        <div>
+          <p className="eyebrow">{t('quotes.makeOffer')}</p>
+          <h2 id="quote-title">{lot.material_category_name || t('common.eWaste')}</h2>
+          <p id="quote-summary">{t('quotes.lotSummary', { weight: lot.approximate_weight ?? lot.weight_kg, unit: lot.weight_unit || t('common.kg'), condition: lot.condition || t('common.conditionNotSpecified') })}</p>
         </div>
-
-        {mutation.isError && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-xl text-sm">
-            Failed to submit quote. Please try again.
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          
-          {/* Quoted Price */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              {t('pricePerKg')}
-            </label>
-            <input 
-              type="number" 
-              step="0.01"
-              placeholder="Enter amount in INR"
-              {...register('quoted_price', { 
-                required: 'Price is required', 
-                min: { value: 1, message: 'Price must be greater than 0' } 
-              })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none" 
-            />
-            {errors.quoted_price && (
-              <p className="text-red-500 text-xs mt-1">{errors.quoted_price.message}</p>
-            )}
-          </div>
-
-          {/* Pickup Available Checkbox */}
-          <div className="flex items-center gap-3 py-2">
-            <input 
-              type="checkbox" 
-              id="pickup" 
-              {...register('pickup_available')} 
-              className="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500" 
-            />
-            <label htmlFor="pickup" className="text-sm font-medium text-gray-700 cursor-pointer">
-              {t('pickupAvailable')}
-            </label>
-          </div>
-
-          {/* Estimated Pickup Date */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              {t('estimatedPickup')}
-            </label>
-            <input 
-              type="date" 
-              {...register('estimated_pickup_date')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none" 
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-            >
-              {t('cancel')}
-            </button>
-            <button 
-              type="submit" 
-              disabled={mutation.isPending} 
-              className="flex-1 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 transition-colors flex justify-center items-center gap-2 disabled:opacity-70"
-            >
-              {mutation.isPending ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} /> Submitting...
-                </>
-              ) : (
-                t('submit')
-              )}
-            </button>
-          </div>
-
-        </form>
+        <button ref={closeButtonRef} className="icon-button" type="button" onClick={onClose} aria-label={t('quotes.closeForm')}><X size={18} /></button>
       </div>
-    </div>
-  );
+      {mutation.isError && <div className="form-alert" role="alert">{t(getOfferErrorKey(mutation.error))}</div>}
+      {mutation.isSuccess ? <div className="detail-placeholder" role="status"><CheckCircle2 size={28} color="#0d5c3a" /><h2>{t('quotes.offerSent')}</h2><p>{t('quotes.offerSentDescription')}</p><Button type="button" onClick={onClose}>{t('common.close')}</Button></div> : <form className="modal-form" onSubmit={handleSubmit(submitOffer)}>
+        <label className="form-field">
+          <span className="form-label"><IndianRupee size={13} /> {t('quotes.yourOffer')}</span>
+          <input className="form-input" type="number" min="0.01" step="0.01" inputMode="decimal" placeholder={t('quotes.offerPlaceholder')} {...register('quoted_price', { required: t('quotes.validOffer'), min: { value: 0.01, message: t('quotes.validOffer') }, validate: (value) => Number.isFinite(Number(value)) || t('quotes.validOffer') })} />
+          {errors.quoted_price && <span className="field-error">{errors.quoted_price.message}</span>}
+          {calculatedRate !== null && <span className="field-help">{t('quotes.calculatedRate', { amount: formatCurrency(calculatedRate, i18n.language) })}</span>}
+        </label>
+        <fieldset className="form-fieldset">
+          <legend className="form-label">{t('quotes.pickupQuestion')}</legend>
+          <div className="radio-options">
+            <label className="radio-option"><input type="radio" value="yes" {...register('pickup_available')} /> <span>{t('quotes.pickupYes')}</span></label>
+            <label className="radio-option"><input type="radio" value="no" {...register('pickup_available')} /> <span>{t('quotes.pickupNo')}</span></label>
+          </div>
+        </fieldset>
+        <label className="form-field"><span className="form-label"><CalendarDays size={13} /> {t('quotes.estimatedPickupDate')}</span><input className="form-input" type="date" {...register('estimated_pickup_date', { required: t('quotes.dateRequired') })} />{errors.estimated_pickup_date && <span className="field-error">{errors.estimated_pickup_date.message}</span>}</label>
+        <div className="form-actions"><Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button><Button type="submit" loading={mutation.isPending}>{t('quotes.submitOffer')}</Button></div>
+      </form>}
+    </section>
+  </div>;
 }

@@ -20,8 +20,8 @@ async def upload_lot_image(
     if not lot.exists or lot.to_dict().get("collector_id") != current_user["uid"]:
         raise HTTPException(status_code=403, detail="Not authorized to upload images for this lot")
 
-    # Upload to 'lots' folder in Firebase Storage
-    image_url = storage_service.upload_image(file, "lots")
+    # Upload to 'lots' folder in Supabase Storage
+    image_url = await storage_service.upload_image(file, "lots")
     
     # Save the new image URL into the lot document
     existing_images = lot.to_dict().get("images", [])
@@ -39,12 +39,12 @@ async def upload_auth_document(
     file: UploadFile = File(...),
     current_user: dict = Depends(require_roles(["RECYCLER"]))
 ):
-    # Upload to 'documents' folder
-    doc_url = storage_service.upload_image(file, "documents")
+    # Upload to 'documents' folder in Supabase Storage
+    doc_url = await storage_service.upload_image(file, "documents")
     
     # Save to recycler profile
-    db.collection('recyclers').document(current_user["uid"]).update({
+    db.collection('recyclers').document(current_user["uid"]).set({
         "authorization_document_url": doc_url
-    })
+    }, merge=True)
     
     return APIResponse(success=True, message="Document uploaded", data={"url": doc_url})

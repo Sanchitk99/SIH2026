@@ -6,8 +6,9 @@ class RecyclerProfileUpdate(BaseModel):
     facility_address: str
     city: str
     state: str
-    latitude: float
-    longitude: float
+    latitude: float = 0
+    longitude: float = 0
+    contact_person: Optional[str] = None
     authorization_number: Optional[str] = None
     pickup_available: bool = False
     service_area: int = 10 # km

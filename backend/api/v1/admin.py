@@ -29,6 +29,26 @@ async def authorize_recycler(
     
     return APIResponse(success=True, message=f"Recycler status updated to {status}")
 
+@router.get("/recyclers/pending", response_model=APIResponse)
+async def list_pending_recyclers(current_user: dict = Depends(require_roles(["ADMIN"]))):
+    docs = db.collection('recyclers').where('authorization_status', '==', 'PENDING').stream()
+    pending = []
+    for doc in docs:
+        profile = {**doc.to_dict(), "uid": doc.id}
+        user_doc = db.collection('users').document(doc.id).get()
+        if user_doc.exists:
+            profile.update(user_doc.to_dict())
+        pending.append(profile)
+    return APIResponse(success=True, message="Pending recyclers fetched", data=pending)
+
+@router.post("/recyclers/{recycler_id}/verify", response_model=APIResponse)
+async def verify_recycler(recycler_id: str, current_user: dict = Depends(require_roles(["ADMIN"]))):
+    recycler_ref = db.collection('recyclers').document(recycler_id)
+    if not recycler_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Recycler profile not found")
+    recycler_ref.update({"authorization_status": "VERIFIED"})
+    return APIResponse(success=True, message="Recycler verified", data={"uid": recycler_id, "authorization_status": "VERIFIED"})
+
 @router.get("/dashboard", response_model=APIResponse)
 async def get_dashboard_stats(current_user: dict = Depends(require_roles(["ADMIN"]))):
     # Note: In a large production app, use Firestore Aggregation queries. 

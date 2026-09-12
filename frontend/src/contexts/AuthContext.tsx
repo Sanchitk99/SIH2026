@@ -1,40 +1,45 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import axios from 'axios';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { axiosClient } from '../api/axiosClient';
 
+export type UserRole = 'ADMIN' | 'RECYCLER' | 'COLLECTOR';
+
 interface BackendUser {
   uid: string;
   name: string;
-  role: 'ADMIN' | 'RECYCLER' | 'COLLECTOR';
+  role: UserRole;
   is_active: boolean;
 }
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   backendUser: BackendUser | null;
-  role: string | null;
+  role: UserRole | null;
   loading: boolean;
   isAuthenticated: boolean;
-  refreshProfile: () => Promise<void>; // Add this line
+  profileError: string | null;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [backendUser, setBackendUser] = useState<BackendUser | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Expose a manual fetch function
   const refreshProfile = async () => {
+    setProfileError(null);
     try {
-      const res = await axiosClient.get('/auth/me');
-      setBackendUser(res.data.data);
-    } catch (error: any) {
-      if (error.response?.status !== 404) {
-        console.error("Backend profile fetch failed.", error);
-      }
+      const response = await axiosClient.get('/auth/me');
+      setBackendUser(response.data.data);
+    } catch (error: unknown) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      setProfileError(status === 404 ? 'auth.profileNotFound' : 'auth.serverUnavailable');
+      if (import.meta.env.DEV) console.error('Backend profile fetch failed.', error);
       setBackendUser(null);
     }
   };
@@ -42,90 +47,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
-      if (user) {
-        await refreshProfile(); // Use the function here
-      } else {
-        setBackendUser(null);
-      }
+      if (user) await refreshProfile();
+      else { setBackendUser(null); setProfileError(null); }
       setLoading(false);
     });
     return unsubscribe;
   }, []);
 
-  return (
-    <AuthContext.Provider value={{
-      firebaseUser,
-      backendUser,
-      role: backendUser?.role || null,
-      loading,
-      isAuthenticated: !!firebaseUser,
-      refreshProfile // Provide it to the app
-    }}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
-};
+  return <AuthContext.Provider value={{ firebaseUser, backendUser, role: backendUser?.role || null, loading, isAuthenticated: Boolean(firebaseUser), profileError, refreshProfile }}>{!loading && children}</AuthContext.Provider>;
+}
 
+// This file intentionally exports the provider and its companion hook.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
-
-// import React, { createContext, useContext, useEffect, useState } from 'react';
-// import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-// import { auth } from '../firebase/config';
-// import { axiosClient } from '../api/axiosClient';
-
-// interface BackendUser {
-//   uid: string;
-//   name: string;
-//   role: 'ADMIN' | 'RECYCLER' | 'COLLECTOR';
-//   is_active: boolean;
-// }
-
-// interface AuthContextType {
-//   firebaseUser: FirebaseUser | null;
-//   backendUser: BackendUser | null;
-//   role: string | null;
-//   loading: boolean;
-//   isAuthenticated: boolean;
-// }
-
-// const AuthContext = createContext<AuthContextType>({} as AuthContextType);
-
-// export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-//   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-//   const [backendUser, setBackendUser] = useState<BackendUser | null>(null);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-//       setFirebaseUser(user);
-//       if (user) {
-//         try {
-//           // Token is automatically injected by axiosClient interceptor
-//           const res = await axiosClient.get('/auth/me');
-//           setBackendUser(res.data.data);
-//         } catch (error) {
-//           console.error("Backend profile fetch failed. User may need to register.", error);
-//           setBackendUser(null);
-//         }
-//       } else {
-//         setBackendUser(null);
-//       }
-//       setLoading(false);
-//     });
-//     return unsubscribe;
-//   }, []);
-
-//   return (
-//     <AuthContext.Provider value={{
-//       firebaseUser,
-//       backendUser,
-//       role: backendUser?.role || null,
-//       loading,
-//       isAuthenticated: !!firebaseUser
-//     }}>
-//       {!loading && children}
-//     </AuthContext.Provider>
-//   );
-// };
-
-// export const useAuth = () => useContext(AuthContext);

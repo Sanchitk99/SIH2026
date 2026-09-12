@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { ArrowRight, CheckCircle2, Globe2, LockKeyhole } from 'lucide-react';
 import { auth, googleProvider } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogIn } from 'lucide-react';
+import Brand from '../../components/brand/Brand';
+import { Button } from '../../components/ui/Primitives';
+import { getErrorMessage } from '../../utils/errors';
+import LanguageSwitcher from '../../components/layout/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,91 +16,78 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, role } = useAuth();
+  const { t } = useTranslation();
+  const { isAuthenticated, role, profileError } = useAuth();
 
-  // Redirect if already logged in and role is loaded
   useEffect(() => {
-    if (isAuthenticated && role) {
-      navigate(`/${role.toLowerCase()}/dashboard`);
-    }
+    if (isAuthenticated && role) navigate(`/${role.toLowerCase()}/dashboard`, { replace: true });
   }, [isAuthenticated, role, navigate]);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEmailLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
     setIsSubmitting(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // AuthContext will automatically fetch the backend profile and trigger the useEffect redirect
-    } catch (err: any) {
-      setError(err.message || 'Failed to login');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t('auth.loginError')));
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setError('');
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      setError(err.message || 'Google login failed');
-    }
+    try { await signInWithPopup(auth, googleProvider); }
+    catch (err: unknown) { setError(getErrorMessage(err, t('auth.googleError'))); }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-600 mb-2">Kabadiwala Connect</h1>
-          <p className="text-gray-500">Sign in to your account</p>
+    <main className="auth-page">
+      <section className="auth-intro">
+        <div className="auth-brand-row"><Brand /><LanguageSwitcher /></div>
+        <div className="auth-intro-copy">
+          <p className="eyebrow">{t('auth.loginEyebrow')}</p>
+          <h1>{t('auth.loginHeroTitle')}</h1>
+          <p>{t('auth.loginHeroDescription')}</p>
+          <ul className="auth-benefits">
+            <li><CheckCircle2 size={18} /> {t('auth.benefitLots')}</li>
+            <li><CheckCircle2 size={18} /> {t('auth.benefitMarketplace')}</li>
+            <li><CheckCircle2 size={18} /> {t('auth.benefitStatus')}</li>
+          </ul>
         </div>
+        <p className="auth-footnote">{t('auth.loginFootnote')}</p>
+      </section>
 
-        {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
-
-        <form onSubmit={handleEmailLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+      <section className="auth-panel">
+        <div className="auth-panel-inner">
+          <div className="auth-panel-heading">
+            <div className="auth-icon"><LockKeyhole size={20} /></div>
+            <p className="eyebrow">{t('auth.secureAccess')}</p>
+            <h2>{t('auth.welcomeBack')}</h2>
+            <p>{t('auth.loginDescription')}</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex justify-center items-center gap-2"
-          >
-            {isSubmitting ? 'Signing in...' : <><LogIn size={20} /> Sign In</>}
-          </button>
-        </form>
 
-        <div className="mt-6">
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full border border-gray-300 bg-white text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-          >
-            Continue with Google
-          </button>
+          {(error || profileError) && <div className="auth-error" role="alert">{error || (profileError ? t(profileError) : '')}</div>}
+
+          <form onSubmit={handleEmailLogin} className="auth-form">
+            <label className="form-field">
+              <span className="form-label">{t('auth.email')}</span>
+              <input className="form-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} required />
+            </label>
+            <label className="form-field">
+              <span className="form-label">{t('auth.password')}</span>
+              <input className="form-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t('auth.passwordPlaceholder')} required />
+            </label>
+            <Button type="submit" loading={isSubmitting} className="auth-submit">{t('auth.signIn')} <ArrowRight size={17} /></Button>
+          </form>
+
+          <div className="auth-divider"><span>{t('auth.continueWith')}</span></div>
+          <Button type="button" variant="secondary" onClick={handleGoogleLogin} className="auth-submit"><Globe2 size={17} /> {t('auth.google')}</Button>
+
+          <p className="auth-switch">{t('auth.newToMarketplace')} <Link to="/auth/register">{t('auth.createAccount')}</Link></p>
         </div>
-
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account? <Link to="/auth/register" className="text-green-600 font-medium">Register here</Link>
-        </p>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

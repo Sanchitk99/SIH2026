@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 # python-multipart==0.0.6
 python-multipart==0.0.18
 inference-sdk==1.5.2
+supabase>=2.0.0,<3.0.0

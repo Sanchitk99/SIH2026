@@ -3,19 +3,22 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth
 from core.firebase import db
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required", headers={"WWW-Authenticate": "Bearer"})
     token = credentials.credentials
     
     # 1. Verify Token (Only catch Firebase Auth errors here)
     try:
         decoded_token = auth.verify_id_token(token)
         uid = decoded_token.get('uid')
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authentication credentials: {str(e)}"
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
         
     # 2. Fetch User from Firestore (Outside the try-catch block)
@@ -24,7 +27,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     if not user_doc.exists:
         raise HTTPException(
             status_code=404, 
-            detail=f"User profile not found in Firestore for UID: {uid}"
+            detail="User profile not found"
         )
         
     user_data = user_doc.to_dict()
@@ -51,8 +54,9 @@ def verify_firebase_token_only(credentials: HTTPAuthorizationCredentials = Depen
         token = credentials.credentials
         decoded_token = auth.verify_id_token(token)
         return decoded_token
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}"
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )

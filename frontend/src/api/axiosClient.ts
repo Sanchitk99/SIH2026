@@ -19,3 +19,23 @@ axiosClient.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+axiosClient.interceptors.response.use(
+  (response) => response,
+  async (error: unknown) => {
+    if (!axios.isAxiosError(error) || error.response?.status !== 401 || !auth.currentUser || error.config?.headers?.['X-Auth-Retry']) {
+      return Promise.reject(error);
+    }
+
+    try {
+      const token = await auth.currentUser.getIdToken(true);
+      const config = error.config;
+      if (!config) return Promise.reject(error);
+      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers['X-Auth-Retry'] = '1';
+      return axiosClient(config);
+    } catch {
+      return Promise.reject(error);
+    }
+  },
+);

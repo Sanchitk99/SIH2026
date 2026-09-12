@@ -1,13 +1,43 @@
-import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
-import { Home, Package, LogOut, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ClipboardList, FileText, Home, LogOut, PlusCircle, ShieldCheck, UserRound, Warehouse } from 'lucide-react';
+import Brand from '../brand/Brand';
+import LanguageSwitcher from './LanguageSwitcher';
+
+type NavItem = { to: string; labelKey: string; icon: typeof Home };
+
+function initials(label?: string) {
+  return (label || 'KC').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+}
 
 export default function AppLayout() {
   const { role, backendUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useTranslation();
+
+  const navByRole: Record<string, NavItem[]> = {
+    COLLECTOR: [
+      { to: '/collector/dashboard', labelKey: 'nav.overview', icon: Home },
+      { to: '/collector/lots/create', labelKey: 'nav.addEWaste', icon: PlusCircle },
+      { to: '/collector/lots', labelKey: 'nav.myLotsQuotes', icon: ClipboardList },
+      { to: '/collector/transactions', labelKey: 'nav.transactions', icon: FileText },
+      { to: '/collector/safety', labelKey: 'nav.safety', icon: ShieldCheck },
+    ],
+    RECYCLER: [
+      { to: '/recycler/dashboard', labelKey: 'nav.marketplace', icon: Home },
+      { to: '/recycler/profile', labelKey: 'nav.facilityProfile', icon: Warehouse },
+      { to: '/recycler/transactions', labelKey: 'nav.handovers', icon: FileText },
+    ],
+    ADMIN: [{ to: '/admin/dashboard', labelKey: 'nav.adminOverview', icon: Home }],
+  };
+
+  const navItems = navByRole[role || ''] || [];
+  const activeLabel = navItems.find((item) => location.pathname === item.to)?.labelKey || 'nav.workspace';
+  const roleLabel = role ? t(`roles.${role}`) : t('nav.workspace');
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -15,62 +45,53 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-green-600">Kabadiwala Connect</h2>
-          <p className="text-sm text-gray-500 mt-1 capitalize">{role?.toLowerCase()} Dashboard</p>
+    <div className="app-shell">
+      <aside className="app-sidebar" aria-label={t('nav.primary')}>
+        <div className="sidebar-top">
+          <Brand />
+          <p className="sidebar-role">{roleLabel} · {t('nav.workspace')}</p>
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => navigate(`/${role?.toLowerCase()}/dashboard`)} className="flex items-center gap-3 w-full p-3 text-left rounded-lg hover:bg-green-50 text-gray-700 hover:text-green-700">
-            <Home size={20} /> Home
-          </button>
-          <button className="flex items-center gap-3 w-full p-3 text-left rounded-lg hover:bg-green-50 text-gray-700 hover:text-green-700">
-            <Package size={20} /> My Lots
-          </button>
-          <button className="flex items-center gap-3 w-full p-3 text-left rounded-lg hover:bg-green-50 text-gray-700 hover:text-green-700">
-            <FileText size={20} /> Transactions
-          </button>
+        <nav className="sidebar-nav">
+          {navItems.map(({ to, labelKey, icon: Icon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <Icon size={18} aria-hidden="true" />
+              <span>{t(labelKey)}</span>
+            </NavLink>
+          ))}
         </nav>
-
-        <div className="p-4 border-t border-gray-200">
-          <div className="mb-4 px-2">
-            <p className="text-sm font-medium text-gray-900">{backendUser?.name}</p>
+        <div className="sidebar-footer">
+          <div className="user-mini">
+            <span className="user-avatar" aria-hidden="true">{initials(roleLabel)}</span>
+            <div><strong>{roleLabel}</strong><span>{backendUser?.is_active ? t('common.activeAccount') : t('common.accountReview')}</span></div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 text-left rounded-lg hover:bg-red-50 text-red-600">
-            <LogOut size={20} /> Logout
-          </button>
+          <button type="button" className="logout-button" onClick={handleLogout}><LogOut size={16} aria-hidden="true" /> {t('common.logout')}</button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <header className="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-10">
-          <h2 className="text-lg font-bold text-green-600">Kabadiwala Connect</h2>
-          <button onClick={handleLogout} className="text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
+      <div className="app-main">
+        <header className="app-topbar">
+          <p className="topbar-context">{t(activeLabel)}</p>
+          <div className="topbar-actions">
+            <LanguageSwitcher />
+            <div className="profile-chip">
+              <span className="user-avatar" aria-hidden="true">{initials(roleLabel)}</span>
+              <div><strong>{roleLabel}</strong><span>{roleLabel}</span></div>
+            </div>
+          </div>
         </header>
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
-          <Outlet />
-        </div>
-      </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around p-3 z-10">
-        <button onClick={() => navigate(`/${role?.toLowerCase()}/dashboard`)} className="flex flex-col items-center text-green-600">
-          <Home size={24} />
-          <span className="text-xs mt-1">Home</span>
-        </button>
-        <button className="flex flex-col items-center text-gray-500 hover:text-green-600">
-          <Package size={24} />
-          <span className="text-xs mt-1">Lots</span>
-        </button>
-        <button className="flex flex-col items-center text-gray-500 hover:text-green-600">
-          <FileText size={24} />
-          <span className="text-xs mt-1">History</span>
-        </button>
-      </nav>
+        <div className="mobile-brandbar"><Brand compact /></div>
+        <main className="page-wrap"><Outlet /></main>
+
+        <nav className="mobile-bottom-nav" aria-label={t('nav.mobile')}>
+          {navItems.map(({ to, labelKey, icon: Icon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'active' : ''}>
+              <Icon size={19} aria-hidden="true" /><span>{t(labelKey)}</span>
+            </NavLink>
+          ))}
+          {navItems.length === 0 && <NavLink to="/auth/login"><UserRound size={19} /> <span>{t('common.login')}</span></NavLink>}
+        </nav>
+      </div>
     </div>
   );
 }

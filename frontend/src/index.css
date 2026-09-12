@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
-@layer base {
-  html {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  }
-  
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased overflow-x-hidden;
-  }
+:root {
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  color: #102019;
+  background: #f7faf8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
+
+* { box-sizing: border-box; }
+html { min-width: 320px; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #f7faf8; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }

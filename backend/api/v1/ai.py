@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from core.security import get_current_user
 from schemas.common import APIResponse
 from services.ai_service import AIService
@@ -12,7 +12,10 @@ async def classify_ewaste_image(
     current_user: dict = Depends(get_current_user)
 ):
     image_bytes = await file.read()
-    result = ai_service.predict_ewaste_category(image_bytes)
+    try:
+        result = ai_service.predict_ewaste_category(image_bytes)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     
     return APIResponse(
         success=True, 
@@ -27,10 +30,4 @@ async def predict_ewaste_price(
     condition: str = Form(...),
     current_user: dict = Depends(get_current_user)
 ):
-    result = ai_service.predict_price(category, weight_kg, condition)
-    
-    return APIResponse(
-        success=True, 
-        message="Price predicted successfully", 
-        data=result
-    )
+    raise HTTPException(status_code=503, detail="Price prediction is not available")

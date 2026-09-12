@@ -1,51 +1,38 @@
-import React from 'react';
+import { CheckCircle2, Clock3, Scale } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { transactionApi } from '../../services/transactionApi';
-import { FileText, CheckCircle, Clock } from 'lucide-react';
+import { Button, Card, EmptyState, LoadingState, PageHeader, StatusBadge } from '../../components/ui/Primitives';
+import type { Transaction } from '../../types/models';
+import { formatCurrency, formatDate } from '../../utils/formatters';
 
 export default function CollectorTransactions() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['collectorTransactions'],
-    queryFn: transactionApi.getCollectorTransactions,
-  });
+  const { t, i18n } = useTranslation();
+  const query = useQuery({ queryKey: ['collectorTransactions'], queryFn: transactionApi.getCollectorTransactions });
+  const transactions = query.data?.data || [];
 
-  const transactions = data?.data || [];
-
-  if (isLoading) return <div className="p-8 text-center text-gray-500">Loading transactions...</div>;
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">My Transactions & Handovers</h1>
-
-      {transactions.length === 0 ? (
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center text-gray-500">
-          <FileText className="mx-auto text-gray-400 mb-2" size={32} />
-          No transactions recorded yet. Accept a quote to start a transaction.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {transactions.map((tx: any) => (
-            <div key={tx.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex justify-between items-center shadow-sm">
-              <div>
-                <p className="font-bold text-gray-800 text-lg">₹{tx.final_price || tx.agreed_price}</p>
-                <p className="text-sm text-gray-500">Status: <span className="font-semibold text-green-600">{tx.status}</span></p>
-                <p className="text-xs text-gray-400 mt-1">Ref: {tx.id}</p>
-              </div>
-              <div>
-                {tx.status === 'COMPLETED' ? (
-                  <span className="flex items-center gap-1 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-bold">
-                    <CheckCircle size={14} /> Completed
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-3 py-1 rounded-full text-xs font-bold">
-                    <Clock size={14} /> In Progress
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <>
+    <PageHeader title={t('transactions.title')} description={t('transactions.description')} />
+    {query.isLoading ? <LoadingState label={t('transactions.loading')} /> : query.isError ? <div className="error-state"><strong>{t('transactions.loadErrorTitle')}</strong><p>{t('transactions.loadErrorDescription')}</p><Button variant="secondary" onClick={() => void query.refetch()}>{t('common.tryAgain')}</Button></div> : transactions.length === 0 ? <EmptyState title={t('transactions.emptyTitle')} description={t('transactions.emptyDescription')} /> : <section className="transaction-list" aria-label={t('transactions.title')}>
+      {transactions.map((transaction: Transaction) => {
+        const weight = transaction.final_weight ?? transaction.approximate_weight;
+        const price = transaction.final_price ?? transaction.quoted_price;
+        const isPaid = transaction.payment_status === 'PAID';
+        return <Card className="transaction-row" key={transaction.id} as="article">
+          <div className="transaction-copy">
+            <p className="eyebrow">{t('transactions.materialLabel')}</p>
+            <h2>{transaction.material_category_name || t('common.eWaste')}</h2>
+            {weight !== undefined && <p><Scale size={12} /> {t('transactions.weight', { value: `${weight} ${transaction.weight_unit || t('common.kg')}` })}</p>}
+            {transaction.created_at && <p className="list-row-meta">{formatDate(transaction.created_at, i18n.language)}</p>}
+          </div>
+          <div className="transaction-row-right">
+            {price !== undefined ? <span className="transaction-price">{formatCurrency(Number(price), i18n.language)}</span> : <span className="list-row-meta">{t('common.pricePending')}</span>}
+            <StatusBadge status={transaction.transaction_status} />
+            <span className="payment-status">{t('transactions.paymentStatus')}: {isPaid ? t('transactions.paymentReceived') : t('transactions.paymentPending')}</span>
+            {transaction.transaction_status === 'COMPLETED' ? <span className="completion-note"><CheckCircle2 size={14} /> {t('transactions.completed')}</span> : <span className="completion-note pending"><Clock3 size={14} /> {t('transactions.handoverPending')}</span>}
+          </div>
+        </Card>;
+      })}
+    </section>}
+  </>;
 }

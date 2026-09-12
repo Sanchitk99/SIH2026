@@ -11,12 +11,19 @@ i18n.use(initReactI18next).init({
     hi: { common: hiCommon },
     mr: { common: mrCommon },
   },
-  lng: 'en', // Default language
+  lng: window.localStorage.getItem('kabadiwala-language') || 'en',
   fallbackLng: 'en',
+  supportedLngs: ['en', 'hi', 'mr'],
+  load: 'languageOnly',
+  returnNull: false,
   defaultNS: 'common',
   interpolation: {
     escapeValue: false, // React already safeguards from XSS
   },
+});
+
+i18n.on('languageChanged', (language) => {
+  window.localStorage.setItem('kabadiwala-language', language);
 });
 
 export default i18n;

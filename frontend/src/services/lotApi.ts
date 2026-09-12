@@ -1,4 +1,6 @@
 import { axiosClient } from '../api/axiosClient';
+import type { ApiResponse, UploadResult } from '../types/api';
+import type { MaterialLot } from '../types/models';
 // 1. This is what your React Hook Form uses
 export interface CreateLotData {
   category_id: string;
@@ -13,35 +15,37 @@ export interface LotApiPayload {
   material_category_name: string;
   material_description: string;
   approximate_weight: number;
-  collection_location: string;
-  latitude: number;
-  longitude: number;
+  weight_unit: string;
+  condition: string;
+  collection_location?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export const lotApi = {
   // 3. Update the parameter type to accept the new backend payload
   createLot: async (data: LotApiPayload) => {
-    return axiosClient.post('/lots/', data);
+    const response = await axiosClient.post<ApiResponse<MaterialLot>>('/lots/', data);
+    return response.data;
   },
   
   uploadLotImage: async (lotId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return axiosClient.post(`/upload/lots/${lotId}/image`, formData, {
+    const response = await axiosClient.post<ApiResponse<UploadResult>>(`/upload/lots/${lotId}/image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return response.data;
   },
 
   getCollectorLots: async () => {
-    try {
-      const response = await axiosClient.get('/lots/collector/me');
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        return { data: [] }; 
-      }
-      throw error;
-    }
+    const response = await axiosClient.get<ApiResponse<MaterialLot[]>>('/lots/collector/me');
+    return response.data;
+  },
+
+  getAvailableLots: async (status = 'AVAILABLE') => {
+    const response = await axiosClient.get<ApiResponse<MaterialLot[]>>('/lots/', { params: { status } });
+    return response.data;
   }
 };
 

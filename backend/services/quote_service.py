@@ -14,16 +14,19 @@ class QuoteService:
         if not lot.exists or lot.to_dict().get("status") != "AVAILABLE":
             raise HTTPException(status_code=400, detail="Lot is not available for bidding")
 
+        existing_quotes = self.quote_repo.get_by_lot_and_recycler(quote_in.lot_id, recycler_id)
+        if any(quote.get("status") in {"PENDING", "ACCEPTED"} for quote in existing_quotes):
+            raise HTTPException(status_code=409, detail="You already submitted a quote for this lot")
+
         quote_data = quote_in.model_dump()
         quote_data.update({
             "recycler_id": recycler_id,
             "status": "PENDING"
         })
         
-        if lot.to_dict().get("status") == "AVAILABLE":
-            lot_ref.update({"status": "QUOTED"})
-            
-        return self.quote_repo.create(quote_data)
+        result = self.quote_repo.create(quote_data)
+        lot_ref.update({"status": "QUOTED"})
+        return result
 
     def get_quotes_for_lot(self, lot_id: str, collector_id: str) -> list[dict]:
         lot = db.collection('material_lots').document(lot_id).get()
@@ -44,6 +47,10 @@ class QuoteService:
         if lot_ref.get().to_dict().get("collector_id") != collector_id:
             raise HTTPException(status_code=403, detail="Not authorized to accept this quote")
 
+        if quote_data.get("status") == "ACCEPTED":
+            existing = self._get_transaction_for_quote(quote_id)
+            return existing or {"message": "Quote already accepted"}
+
         all_quotes = self.quote_repo.get_by_lot(lot_id)
         for q in all_quotes:
             status = "ACCEPTED" if q["id"] == quote_id else "REJECTED"
@@ -55,6 +62,9 @@ class QuoteService:
         # NEW CODE ADDED HERE: Creates the transaction
         # ==========================================
         tx_repo = __import__('repositories.transaction_repository').transaction_repository.TransactionRepository()
+        existing_transaction = tx_repo.get_by_quote(quote_id)
+        if existing_transaction:
+            return existing_transaction[0]
         tx_data = {
             "lot_id": lot_id,
             "collector_id": collector_id,
@@ -67,3 +77,8 @@ class QuoteService:
         # ==========================================
 
         return {"message": "Quote accepted successfully. Ready for handover."}
+
+    def _get_transaction_for_quote(self, quote_id: str) -> dict | None:
+        from repositories.transaction_repository import TransactionRepository
+        transactions = TransactionRepository().get_by_quote(quote_id)
+        return transactions[0] if transactions else None

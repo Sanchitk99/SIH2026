@@ -15,6 +15,14 @@ async def submit_quote(
     result = quote_service.submit_quote(current_user["uid"], quote_in)
     return APIResponse(success=True, message="Quote submitted", data=result)
 
+@router.get("/lot/{lot_id}", response_model=APIResponse)
+async def get_quotes_for_lot(
+    lot_id: str,
+    current_user: dict = Depends(require_roles(["COLLECTOR"]))
+):
+    result = quote_service.get_quotes_for_lot(lot_id, current_user["uid"])
+    return APIResponse(success=True, message="Quotes fetched", data=result)
+
 @router.post("/{quote_id}/accept", response_model=APIResponse)
 async def accept_quote(
     quote_id: str,

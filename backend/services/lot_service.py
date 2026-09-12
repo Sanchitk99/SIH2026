@@ -30,6 +30,10 @@ class LotService:
         # Safety fallback at the service layer
         return lots if lots is not None else []
 
+    def get_lots(self, status: str | None = None) -> list[dict]:
+        lots = self.lot_repo.get_all(status)
+        return lots if lots is not None else []
+
 
 # from repositories.lot_repository import LotRepository
 # from schemas.lot import LotCreate

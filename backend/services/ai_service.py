@@ -5,15 +5,19 @@ from core.config import settings
 class AIService:
     def __init__(self):
         # Initialize the Roboflow client
-        self.client = InferenceHTTPClient(
-            api_url="https://serverless.roboflow.com",
-            api_key=settings.ROBOFLOW_API_KEY
-        ).configure(InferenceConfiguration(api_key_transport="header"))
+        self.client = None
+        if settings.ROBOFLOW_API_KEY:
+            self.client = InferenceHTTPClient(
+                api_url="https://serverless.roboflow.com",
+                api_key=settings.ROBOFLOW_API_KEY
+            ).configure(InferenceConfiguration(api_key_transport="header"))
         
         # We are using the high-accuracy TRCProject model
         self.model_id = "e-waste-detection-model/1" 
 
     def predict_ewaste_category(self, image_bytes: bytes) -> dict:
+        if self.client is None:
+            raise RuntimeError("AI classification is not configured")
         try:
             # Roboflow expects a file-like object or a path, we wrap bytes in BytesIO
             # Or you can pass the image directly as a base64 string or numpy array
@@ -46,9 +50,4 @@ class AIService:
             }
             
         except Exception as e:
-            return {
-                "predicted_category": "Error",
-                "confidence_score": 0.0,
-                "requires_manual_review": True,
-                "error": str(e)
-            }
+            raise RuntimeError("AI classification failed") from e

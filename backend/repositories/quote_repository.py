@@ -16,6 +16,10 @@ class QuoteRepository(BaseRepository):
     def get_by_lot(self, lot_id: str) -> list[dict]:
         docs = self.collection.where('lot_id', '==', lot_id).stream()
         return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+    def get_by_lot_and_recycler(self, lot_id: str, recycler_id: str) -> list[dict]:
+        docs = self.collection.where('lot_id', '==', lot_id).where('recycler_id', '==', recycler_id).stream()
+        return [{**doc.to_dict(), "id": doc.id} for doc in docs]
         
     def update_status(self, quote_id: str, status: str):
         self.collection.document(quote_id).update({

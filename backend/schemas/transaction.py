@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 class HandoverRecord(BaseModel):
-    final_weight: float
-    final_price: float
-    handover_latitude: float
-    handover_longitude: float
+    final_weight: float = Field(..., gt=0)
+    final_price: float = Field(..., gt=0)
+    handover_latitude: float = Field(..., ge=-90, le=90)
+    handover_longitude: float = Field(..., ge=-180, le=180)
 
 class TransactionResponse(BaseModel):
     id: str

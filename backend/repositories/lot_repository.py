@@ -13,3 +13,11 @@ class LotRepository(BaseRepository):
     def get_by_collector(self, collector_id: str) -> list[dict]:
         docs = self.collection.where('collector_id', '==', collector_id).stream()
         return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+    def get_all(self, status: str | None = None) -> list[dict]:
+        query = self.collection
+        if status:
+            query = query.where('status', '==', status)
+
+        docs = query.stream()
+        return [{**doc.to_dict(), "id": doc.id} for doc in docs]

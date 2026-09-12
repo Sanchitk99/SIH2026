@@ -1,73 +1,15 @@
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { MapPin, Search, Scale } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { axiosClient } from '../../api/axiosClient';
-import { MapPin, Scale, IndianRupee } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import QuoteModal from '../../components/recycler/QuoteModal';
+import { lotApi } from '../../services/lotApi';
+import { Badge, Button, Card, EmptyState, LoadingState, PageHeader } from '../../components/ui/Primitives';
+import type { MaterialLot } from '../../types/models';
 
 export default function RecyclerDashboard() {
-  const { t } = useTranslation();
-  const { backendUser } = useAuth();
-  const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['availableLots'],
-    queryFn: async () => {
-      const response = await axiosClient.get('/lots?status=AVAILABLE');
-      return response.data;
-    }
-  });
-
-  const availableLots = data?.data || [];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">{t('marketplace')}</h1>
-          <p className="text-gray-500">{t('welcome')}, {backendUser?.name}</p>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading available materials...</div>
-      ) : availableLots.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 font-medium">No materials available in your area right now.</p>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {availableLots.map((lot: any) => (
-            <div key={lot.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="h-40 bg-gray-100 flex items-center justify-center border-b border-gray-200">
-                <span className="text-gray-400 font-medium">No Image</span>
-              </div>
-              
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-lg text-gray-800">{lot.category_id}</h3>
-                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">AVAILABLE</span>
-                </div>
-                
-                <div className="space-y-2 mb-6">
-                  <p className="text-sm text-gray-600 flex items-center gap-2"><Scale size={16} className="text-gray-400"/> {lot.weight_kg} kg ({lot.condition})</p>
-                  <p className="text-sm text-gray-600 flex items-center gap-2"><MapPin size={16} className="text-gray-400"/> Location pending</p>
-                </div>
-
-                <button 
-                  onClick={() => setSelectedLotId(lot.id)}
-                  className="w-full bg-white border-2 border-green-600 text-green-600 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-50"
-                >
-                  <IndianRupee size={18} /> {t('submitQuote')}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selectedLotId && <QuoteModal lotId={selectedLotId} onClose={() => setSelectedLotId(null)} />}
-    </div>
-  );
+  const { t } = useTranslation(); const [selectedLot, setSelectedLot] = useState<MaterialLot | null>(null); const [search, setSearch] = useState(''); const [condition, setCondition] = useState('ALL');
+  const lotsQuery = useQuery({ queryKey: ['availableLots'], queryFn: () => lotApi.getAvailableLots() }); const lots: MaterialLot[] = useMemo(() => lotsQuery.data?.data || [], [lotsQuery.data]);
+  const filteredLots = useMemo(() => lots.filter((lot) => { const value = `${lot.material_category_name || ''} ${lot.material_description || ''} ${lot.collection_location || ''}`.toLowerCase(); return (!search || value.includes(search.toLowerCase())) && (condition === 'ALL' || String(lot.condition || '').toUpperCase() === condition); }), [lots, search, condition]);
+  return <><PageHeader title={t('marketplace.title')} description={t('marketplace.description')} /><section className="marketplace-toolbar" aria-label={t('marketplace.searchLabel')}><label className="search-wrap"><Search size={16} aria-hidden="true" /><input className="search-field" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('marketplace.searchPlaceholder')} aria-label={t('marketplace.searchLabel')} /></label><select className="filter-select" value={condition} onChange={(event) => setCondition(event.target.value)} aria-label={t('marketplace.conditionFilter')}><option value="ALL">{t('marketplace.allConditions')}</option><option value="WORKING">{t('createLot.working')}</option><option value="REPAIRABLE">{t('createLot.repairable')}</option><option value="SCRAP">{t('createLot.scrap')}</option><option value="MIXED">{t('createLot.mixed')}</option></select></section>{lotsQuery.isLoading ? <LoadingState label={t('marketplace.findingLots')} /> : lotsQuery.isError ? <div className="error-state"><strong>{t('marketplace.unavailableTitle')}</strong><p>{t('marketplace.unavailableDescription')}</p><Button variant="secondary" onClick={() => void lotsQuery.refetch()}>{t('common.tryAgain')}</Button></div> : filteredLots.length === 0 ? <EmptyState title={t(lots.length === 0 ? 'marketplace.noLotsTitle' : 'marketplace.noMatchesTitle')} description={t(lots.length === 0 ? 'marketplace.noLotsDescription' : 'marketplace.noMatchesDescription')} /> : <section className="marketplace-grid" aria-label={t('marketplace.title')}>{filteredLots.map((lot) => <Card className="market-card" as="article" key={lot.id}><div className="market-image-wrap">{lot.images?.[0] ? <img className="market-card-image" src={lot.images[0]} alt={`${lot.material_category_name || t('common.eWaste')} ${t('common.lot')}`} /> : <div className="market-card-image lot-placeholder">{t('common.noImage')}</div>}<span className="market-image-status"><Badge tone="success">{t('marketplace.available')}</Badge></span></div><div className="market-card-body"><p className="eyebrow">{t('common.lot')}</p><h2>{lot.material_category_name || t('common.uncategorised')}</h2><div className="market-card-meta"><span><Scale size={14} /> {t('quotes.lotSummary', { weight: lot.approximate_weight ?? lot.weight_kg, unit: lot.weight_unit || t('common.kg'), condition: '' }).replace(' · ', '')}</span><span><MapPin size={14} /> {lot.collection_location || t('common.locationPending')}</span><span>{t('marketplace.condition', { value: lot.condition || t('common.conditionNotSpecified') })}</span></div><Button variant="secondary" className="full-button" onClick={() => setSelectedLot(lot)}>{t('marketplace.viewAndQuote')}</Button></div></Card>)}</section>}{selectedLot && <QuoteModal lot={selectedLot} onClose={() => setSelectedLot(null)} />}</>;
 }

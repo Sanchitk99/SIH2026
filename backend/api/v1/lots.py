@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from core.security import require_roles
 from schemas.lot import LotCreate, LotResponse
 from schemas.common import APIResponse
@@ -45,6 +45,19 @@ async def get_my_lots(
                 data=[]
             )
         raise e
+
+@router.get("/", response_model=APIResponse)
+async def get_lots_for_recycler(
+    status: str | None = Query(default=None),
+    current_user: dict = Depends(require_roles(["RECYCLER"]))
+):
+    """Return marketplace lots for recyclers, optionally filtered by status."""
+    lots = lot_service.get_lots(status)
+    return APIResponse(
+        success=True,
+        message="Fetched available lots successfully",
+        data=lots
+    )
 
 # from fastapi import APIRouter, Depends
 # from core.security import require_roles

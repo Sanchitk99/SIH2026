@@ -17,6 +17,10 @@ class TransactionRepository(BaseRepository):
         field = 'collector_id' if role == 'COLLECTOR' else 'recycler_id'
         docs = self.collection.where(field, '==', user_id).stream()
         return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+    def get_by_quote(self, quote_id: str) -> list[dict]:
+        docs = self.collection.where('quote_id', '==', quote_id).stream()
+        return [{**doc.to_dict(), "id": doc.id} for doc in docs]
         
     def update(self, tx_id: str, data: dict):
         data['updated_at'] = self.get_timestamp()

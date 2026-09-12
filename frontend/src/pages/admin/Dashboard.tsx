@@ -1,89 +1,31 @@
-import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, Package, ShieldCheck, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '../../services/adminApi';
-import { Users, ShieldCheck, FileCheck, CheckCircle } from 'lucide-react';
+import { Badge, Button, Card, EmptyState, LoadingState, PageHeader } from '../../components/ui/Primitives';
+import type { RecyclerRecord } from '../../types/models';
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const statsQuery = useQuery({ queryKey: ['adminStats'], queryFn: adminApi.getDashboardStats });
+  const pendingQuery = useQuery({ queryKey: ['pendingRecyclers'], queryFn: adminApi.getPendingRecyclers });
+  const verifyMutation = useMutation({ mutationFn: adminApi.verifyRecycler, onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['pendingRecyclers'] }); } });
+  const stats = statsQuery.data?.data;
+  const pending = pendingQuery.data?.data || [];
+  const metricValues = { users: stats?.total_users_registered ?? 0, lots: stats?.total_lots_created ?? 0, completed: stats?.total_completed_transactions ?? 0 };
 
-  const { data: statsData } = useQuery({
-    queryKey: ['adminStats'],
-    queryFn: adminApi.getDashboardStats,
-  });
-
-  const { data: pendingData, isLoading } = useQuery({
-    queryKey: ['pendingRecyclers'],
-    queryFn: adminApi.getPendingRecyclers,
-  });
-
-  const verifyMutation = useMutation({
-    mutationFn: adminApi.verifyRecycler,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingRecyclers'] });
-    }
-  });
-
-  const stats = statsData?.data || {};
-  const pendingRecyclers = pendingData?.data || [];
-
-  return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-800">Admin Control Center</h1>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="bg-blue-100 p-4 rounded-xl text-blue-600"><Users size={28} /></div>
-          <div>
-            <p className="text-sm text-gray-500 font-medium">Total Users</p>
-            <h3 className="text-2xl font-bold text-gray-800">{stats.total_users || 0}</h3>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="bg-green-100 p-4 rounded-xl text-green-600"><ShieldCheck size={28} /></div>
-          <div>
-            <p className="text-sm text-gray-500 font-medium">Verified Recyclers</p>
-            <h3 className="text-2xl font-bold text-gray-800">{stats.verified_recyclers || 0}</h3>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="bg-amber-100 p-4 rounded-xl text-amber-600"><FileCheck size={28} /></div>
-          <div>
-            <p className="text-sm text-gray-500 font-medium">Total Lots</p>
-            <h3 className="text-2xl font-bold text-gray-800">{stats.total_lots || 0}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Recycler Verifications Section */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Pending Recycler Verifications</h2>
-
-        {isLoading ? (
-          <p className="text-gray-500">Loading pending requests...</p>
-        ) : pendingRecyclers.length === 0 ? (
-          <p className="text-gray-500 text-sm">No pending recycler verifications.</p>
-        ) : (
-          <div className="space-y-4">
-            {pendingRecyclers.map((recycler: any) => (
-              <div key={recycler.uid} className="flex justify-between items-center p-4 border border-gray-100 rounded-xl bg-gray-50">
-                <div>
-                  <p className="font-bold text-gray-800">{recycler.name}</p>
-                  <p className="text-sm text-gray-500">{recycler.email} • {recycler.phone}</p>
-                  <span className="inline-block mt-1 bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded">Pending Verification</span>
-                </div>
-                <button 
-                  onClick={() => verifyMutation.mutate(recycler.uid)}
-                  disabled={verifyMutation.isPending}
-                  className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-green-700 transition-colors"
-                >
-                  <CheckCircle size={16} /> Verify Recycler
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <>
+    <PageHeader title={t('admin.title')} description={t('admin.description')} />
+    {statsQuery.isLoading ? <LoadingState label={t('admin.loadingSummary')} /> : statsQuery.isError ? <div className="error-state" role="alert"><strong>{t('admin.requestsErrorTitle')}</strong><p>{t('admin.requestsErrorDescription')}</p><Button variant="secondary" onClick={() => void statsQuery.refetch()}>{t('common.tryAgain')}</Button></div> : <section className="metric-grid admin-stat-grid" aria-label={t('admin.summaryLabel')}>
+      <Card className="metric-card metric-accent"><p className="metric-label"><Users size={14} /> {t('admin.registeredUsers')}</p><p className="metric-value">{metricValues.users}</p><p className="metric-note">{t('admin.registeredUsersNote')}</p></Card>
+      <Card className="metric-card metric-accent amber"><p className="metric-label"><Package size={14} /> {t('admin.lotsCreated')}</p><p className="metric-value">{metricValues.lots}</p><p className="metric-note">{t('admin.lotsCreatedNote')}</p></Card>
+      <Card className="metric-card metric-accent cyan"><p className="metric-label"><ShieldCheck size={14} /> {t('admin.completedTransactions')}</p><p className="metric-value">{metricValues.completed}</p><p className="metric-note">{t('admin.completedTransactionsNote')}</p></Card>
+    </section>}
+    <section className="section-heading"><div><h2>{t('admin.verificationTitle')}</h2><p>{t('admin.verificationDescription')}</p></div>{pending.length > 0 && <Badge tone="warning">{t('admin.pendingCount', { count: pending.length })}</Badge>}</section>
+    {pendingQuery.isLoading ? <LoadingState label={t('admin.loadingRequests')} /> : pendingQuery.isError ? <div className="error-state" role="alert"><strong>{t('admin.requestsErrorTitle')}</strong><p>{t('admin.requestsErrorDescription')}</p><Button variant="secondary" onClick={() => void pendingQuery.refetch()}>{t('common.tryAgain')}</Button></div> : pending.length === 0 ? <EmptyState title={t('admin.nothingToReview')} description={t('admin.nothingToReviewDescription')} /> : <Card className="admin-table-wrap">
+      {verifyMutation.isError && <div className="form-alert" role="alert">{t('errors.genericTitle')}</div>}
+      <table className="admin-table"><caption className="sr-only">{t('admin.pendingCaption')}</caption><thead><tr><th>{t('admin.facility')}</th><th>{t('admin.contact')}</th><th>{t('admin.location')}</th><th>{t('admin.status')}</th><th><span className="sr-only">{t('admin.actions')}</span></th></tr></thead><tbody>{pending.map((recycler: RecyclerRecord) => <tr key={recycler.uid}><td data-label={t('admin.facility')}><strong>{recycler.facility_name || recycler.name || t('admin.unnamedFacility')}</strong><span>{recycler.authorization_number || t('admin.authorizationMissing')}</span></td><td data-label={t('admin.contact')}>{recycler.email || '—'}<span>{recycler.phone || '—'}</span></td><td data-label={t('admin.location')}>{[recycler.city, recycler.state].filter(Boolean).join(', ') || t('admin.locationMissing')}</td><td data-label={t('admin.status')}><Badge tone="warning">{t('admin.pendingReview')}</Badge></td><td data-label={t('admin.actions')}><div className="admin-action-group"><Button loading={verifyMutation.isPending} onClick={() => verifyMutation.mutate(recycler.uid)}><CheckCircle2 size={15} /> {t('admin.verify')}</Button></div></td></tr>)}</tbody></table>
+    </Card>}
+  </>;
 }
