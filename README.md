@@ -100,27 +100,3 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. The API health endpoint is `http://127.0.0.1:8000/health`.
-
-## Environment and security
-
-Never commit these files or values:
-
-```text
-backend/.env
-backend/sih2026.json
-frontend/.env
-SUPABASE_SECRET_KEY
-Firebase service-account credentials
-Roboflow API keys
-```
-
-Create local environment files from the checked-in examples:
-
-```text
-backend/.env.example  →  backend/.env
-frontend/.env.example →  frontend/.env
-```
-
-## License
-
-Add the project license here before public release.
