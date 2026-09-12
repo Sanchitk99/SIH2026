@@ -1,0 +1,6 @@
+/* Custom animations or third-party library overrides can go here */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
