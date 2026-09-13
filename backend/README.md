@@ -65,14 +65,22 @@ SUPABASE_STORAGE_BUCKET=ewaste-images
 
 Lot images are stored under `lots/`; recycler documents are stored under `documents/`. Never expose `SUPABASE_SECRET_KEY` in the frontend.
 
-## Other variables
+## Roboflow item identification
+
+The photo classification endpoint uses the official `inference-sdk` client and the configured workflow `e-waste-ve-waste-oeexv-iyzv5-1-rfdetr-small-t1-logic` in workspace `siddharth-singh-np6gv`. Configure the backend only:
 
 ```env
 ROBOFLOW_API_KEY=your-roboflow-api-key
+ROBOFLOW_TIMEOUT_SECONDS=30
+ROBOFLOW_RETRIES=2
 FIREBASE_CREDENTIALS_PATH=./sih2026.json
 ```
 
-The Roboflow key is only required for the AI classification endpoint.
+The key is sent in the `Authorization: Bearer` header and is only required for the AI classification endpoint. The UI uses the returned suggestion when it matches a category; otherwise the collector can select the item manually.
+
+## Other variables
+
+See `.env.example` for the remaining Firebase and Supabase variables.
 
 ## Verification
 

@@ -90,7 +90,7 @@ export default function QuoteModal({ lot, onClose }: { lot: MaterialLot; onClose
             <label className="radio-option"><input type="radio" value="no" {...register('pickup_available')} /> <span>{t('quotes.pickupNo')}</span></label>
           </div>
         </fieldset>
-        <label className="form-field"><span className="form-label"><CalendarDays size={13} /> {t('quotes.estimatedPickupDate')}</span><input className="form-input" type="date" {...register('estimated_pickup_date', { required: t('quotes.dateRequired') })} />{errors.estimated_pickup_date && <span className="field-error">{errors.estimated_pickup_date.message}</span>}</label>
+        <label className="form-field"><span className="form-label"><CalendarDays size={13} /> {t('quotes.estimatedPickupDate')}</span><input className="form-input" type="date" min={new Date().toISOString().slice(0, 10)} {...register('estimated_pickup_date', { required: t('quotes.dateRequired') })} />{errors.estimated_pickup_date && <span className="field-error">{errors.estimated_pickup_date.message}</span>}</label>
         <div className="form-actions"><Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button><Button type="submit" loading={mutation.isPending}>{t('quotes.submitOffer')}</Button></div>
       </form>}
     </section>

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from core.security import require_roles, get_current_user
+from core.security import require_roles
 from schemas.transaction import HandoverRecord
 from schemas.common import APIResponse
 from services.transaction_service import TransactionService
@@ -9,13 +9,9 @@ transaction_service = TransactionService()
 
 @router.get("/", response_model=APIResponse)
 async def get_my_transactions(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_roles(["COLLECTOR", "RECYCLER"]))
 ):
     role = current_user.get("role")
-    # Both Collectors and Recyclers can view their own transactions
-    if role not in ["COLLECTOR", "RECYCLER"]:
-        return APIResponse(success=False, message="Invalid role", data=[])
-        
     transactions = transaction_service.get_user_transactions(current_user["uid"], role)
     return APIResponse(success=True, message="Transactions fetched", data=transactions)
 

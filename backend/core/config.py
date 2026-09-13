@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     # ADD THIS LINE:
     firebase_credentials_path: str = "./sih2026.json"
     ROBOFLOW_API_KEY: str | None = None
+    ROBOFLOW_TIMEOUT_SECONDS: float = 30.0
+    ROBOFLOW_RETRIES: int = 2
 
     # Supabase Storage is used for uploaded lot images and recycler documents.
     # Keep the service-role key on the backend only; never put it in frontend/.env.

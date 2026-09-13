@@ -11,6 +11,8 @@ import { lotApi, type CreateLotData } from '../../services/lotApi';
 import { Button, Card, ErrorState, LoadingState, PageHeader } from '../../components/ui/Primitives';
 import { getErrorMessage } from '../../utils/errors';
 
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
 export default function CreateLot() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -68,6 +70,10 @@ export default function CreateLot() {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setError(t('createLot.imageFileError'));
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setError(t('createLot.imageTooLarge'));
       return;
     }
     setError('');
@@ -189,15 +195,17 @@ export default function CreateLot() {
 
   if (isSuccess) {
     return (
-      <section className="create-lot-success" aria-labelledby="create-lot-success-title">
-        <CheckCircle2 size={42} aria-hidden="true" />
-        <h1 id="create-lot-success-title">{t('createLot.successTitle')}</h1>
-        <p>{t('createLot.successDescription')}</p>
-        <div className="create-lot-success-actions">
-          <Link to="/collector/lots"><Button>{t('createLot.viewLots')}</Button></Link>
-          <Button type="button" variant="secondary" onClick={resetForm}>{t('createLot.addAnother')}</Button>
-        </div>
-      </section>
+      <div className="modal-backdrop" role="presentation">
+        <section className="modal-card listing-success-card" role="dialog" aria-modal="true" aria-labelledby="create-lot-success-title" aria-describedby="create-lot-success-description">
+          <CheckCircle2 size={42} aria-hidden="true" />
+          <h1 id="create-lot-success-title">{t('createLot.successTitle')}</h1>
+          <p id="create-lot-success-description">{t('createLot.successDescription')}</p>
+          <div className="create-lot-success-actions">
+            <Link to="/collector/lots"><Button>{t('createLot.viewLots')}</Button></Link>
+            <Button type="button" variant="secondary" onClick={resetForm}>{t('createLot.addAnother')}</Button>
+          </div>
+        </section>
+      </div>
     );
   }
 

@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBackendUser(response.data.data);
     } catch (error: unknown) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-      setProfileError(status === 404 ? 'auth.profileNotFound' : 'auth.serverUnavailable');
+      setProfileError(status === 404 ? 'auth.profileNotFound' : status === 401 ? 'auth.sessionExpired' : status === 403 ? 'auth.accountInactive' : 'auth.serverUnavailable');
       if (import.meta.env.DEV) console.error('Backend profile fetch failed.', error);
       setBackendUser(null);
     }

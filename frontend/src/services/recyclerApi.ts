@@ -7,8 +7,8 @@ export interface RecyclerProfileData {
   facility_address: string;
   city: string;
   state: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   contact_person?: string;
   authorization_number?: string;
   pickup_available: boolean;

@@ -1,0 +1,19 @@
+{
+  "name": "Kabadiwala Connect",
+  "short_name": "Kabadiwala",
+  "description": "An e-waste circular marketplace for collectors and recyclers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f8f5",
+  "theme_color": "#123b2a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

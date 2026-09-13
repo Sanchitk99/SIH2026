@@ -8,9 +8,9 @@ Electronic waste is often collected and traded through fragmented, informal chan
 
 This project addresses that challenge by providing:
 
-- a digital listing flow for collectors;
+- a digital item-listing flow for collectors;
 - image storage and optional AI-assisted material classification;
-- a marketplace where recyclers can discover available lots and submit quotes;
+- a marketplace where recyclers can discover available items and submit quotes;
 - recycler profile and verification workflows for administrators;
 - quote acceptance and handover/transaction tracking;
 - multilingual UI support for English, Hindi, and Marathi.
@@ -19,7 +19,7 @@ This project addresses that challenge by providing:
 
 ## Main roles
 
-- **Collector** — creates e-waste lots, uploads photos, views quotes, and tracks transactions.
+- **Collector** — creates e-waste item listings, uploads photos, views quotes, and tracks transactions.
 - **Recycler** — maintains a facility profile, browses available lots, submits quotes, and records handovers.
 - **Admin** — reviews and verifies recycler profiles.
 
@@ -30,6 +30,12 @@ This project addresses that challenge by providing:
 - Authentication and application data: Firebase Authentication and Firestore
 - Image/document storage: Supabase Storage
 - Optional classification: Roboflow inference
+
+## Roboflow item identification
+
+The collector photo flow calls the Roboflow workflow `e-waste-ve-waste-oeexv-iyzv5-1-rfdetr-small-t1-logic` in workspace `siddharth-singh-np6gv`. The backend sends the image through the official `inference-sdk` client using header-based authentication, a 30-second timeout, and two retries with backoff. Set `ROBOFLOW_API_KEY` in `backend/.env`; never place it in the frontend or commit it.
+
+The workflow response is parsed defensively because output names are defined by the workflow. If no usable label is returned, the collector is asked to choose the item manually.
 
 ## Repository structure
 

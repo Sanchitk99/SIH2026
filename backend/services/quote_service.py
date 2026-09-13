@@ -51,6 +51,13 @@ class QuoteService:
             existing = self._get_transaction_for_quote(quote_id)
             return existing or {"message": "Quote already accepted"}
 
+        if quote_data.get("status") != "PENDING":
+            raise HTTPException(status_code=400, detail="This quote is no longer available")
+
+        lot_snapshot = lot_ref.get()
+        if not lot_snapshot.exists or lot_snapshot.to_dict().get("status") != "QUOTED":
+            raise HTTPException(status_code=400, detail="This item is no longer available")
+
         all_quotes = self.quote_repo.get_by_lot(lot_id)
         for q in all_quotes:
             status = "ACCEPTED" if q["id"] == quote_id else "REJECTED"
